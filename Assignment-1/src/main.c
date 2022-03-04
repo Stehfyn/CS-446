@@ -62,7 +62,7 @@
                     }
                     if(isRedirect)
                     {
-                        printf("%s", ret);
+                        
                         fredirect = fopen(ret, "w");
                         if(fredirect == NULL)
                         {
@@ -100,7 +100,7 @@
                     free(outputTokens[i]); //outputTokens[i] = NULL;
                 }
                 kill(getpid(), 0);
-                return 0;
+                //return 0;
             }
         }
 
@@ -129,7 +129,7 @@
             //handle redirect
             if(isRedirect)
             {
-                printf("%s", ret);
+                
                 fredirect = fopen(ret, "w");
                 if(fredirect == NULL)
                 {
