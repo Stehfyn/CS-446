@@ -101,7 +101,7 @@
                 }
                 if(isExits)
                     kill(getpid(), 15);
-                else()
+                else(
                     return 0;
             }
         }
