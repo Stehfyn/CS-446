@@ -1,0 +1,11 @@
+#Directories
+bin/
+debug/
+obj/
+
+#Files
+*.o
+*.txt
+
+#Environments
+.vscode/

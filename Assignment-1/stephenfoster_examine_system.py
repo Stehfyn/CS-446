@@ -29,13 +29,14 @@ def main():
     out_path = os.path.split(os.path.join(os.getcwd(), self))[0]
 
     #Take and parse input from /proc
-    cpuinfo        = parseFor(getRaw("/proc/cpuinfo"), ["model name", "cpu cores"])
+    cpuinfo        = parseForStart(getRaw("/proc/cpuinfo"), ["model name", "cpu cores"])
     version        = fixListToStr(getRaw("/proc/version"))
     uptime         = float(parsePos(fixListToStr(getRaw("/proc/uptime")), 0, " "))
     systemd        = int(parsePos(fixListToStr(getRaw("/proc/1/stat")), 21, " "))
-    boottime       = int(parsePos(fixListToStr(parseFor(getRaw("/proc/stat"), ["btime"])), 1, " "))
-    vmstats        = parseFor(getRaw("/proc/vmstat"), ["pgpgin", "pgpgout", "pswpin", "pswpout"])
-    processes      = parsePos(fixListToStr(parseFor(getRaw("/proc/stat"), ["processes"])), 1, " ")
+    boottime       = int(parsePos(fixListToStr(parseForStart(getRaw("/proc/stat"), ["btime"])), 1, " "))
+    diskstats      = parsePos(fixListToStr(parseForRelSub(getRaw("/proc/diskstats"), ["sda1"], -1)), 1, "sda")
+    vmstats        = parseForStart(getRaw("/proc/vmstat"), ["pgpgin", "pgpgout", "pswpin", "pswpout"])
+    processes      = parsePos(fixListToStr(parseForStart(getRaw("/proc/stat"), ["processes"])), 1, " ")
 
     #Format uptime from /proc/uptime
     uptime = str(datetime.timedelta(seconds=int(uptime)))
@@ -44,7 +45,13 @@ def main():
     HZ = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
     boottime += systemd/HZ
     boottime = str(datetime.datetime.fromtimestamp(int(boottime)))
+    
+    #Further parse and fill diskstats
 
+    reads = "Reads: " + parsePos(diskstats, 1, " ")
+    writes = "Writes: " + parsePos(diskstats, 5, " ") + "\n"
+    diskstats = [reads, writes]
+    
     #Output polishing
     cpuinfo.insert(0, "(1) CPU Type and Model:\n")
     for x in range(1, len(cpuinfo)):
@@ -52,13 +59,13 @@ def main():
     version = ("(2) Kernel Version:\n\t") + version
     uptime = "(3) Uptime: " + str(uptime)
     boottime = "(4) System Boot: " + boottime
-    vmstats = ["(5) Disk Requests:\n"] + vmstats
-    for x in range(1, len(vmstats)):
-        vmstats[x] = "\t" + vmstats[x]
+    diskstats = ["(5) Disk Requests:\n"] + diskstats
+    for x in range(1, len(diskstats)):
+        diskstats[x] = "\t" + diskstats[x]
     processes = "(6) Processes: " + fixListToStr(processes)
 
     #Fill an output buffer and write it to the out file
-    buffer = [cpuinfo, version, uptime, boottime, vmstats, processes]
+    buffer = [cpuinfo, version, uptime, boottime, diskstats, processes]
     clearFile(out_path, out_file)
 
     for item in buffer:
@@ -76,14 +83,39 @@ def getRaw(_path):
     fin.close()
     return raw
 
-def parseFor(_lines, _strs):
+def parseForRelSub(_lines, _strs, _pos):
+    hits = []
+    numLines = 0
+    for line in _lines:
+        for _str in _strs:
+            if _str in line:
+                hits = hits[:] + [_lines[numLines + _pos]]
+
+        if len(hits) == len(_strs):
+            return hits
+        numLines += 1
+    return hits
+
+def parseForSub(_lines, _strs):
     hits = []
     for line in _lines:
-        for str in _strs:
-            if line.startswith(str):
+        for _str in _strs:
+            if line.find(_str):
+                hits = hits[:] + [line]
+        
+        if len(hits) == len(_strs):
+            return hits
+    return hits
+
+def parseForStart(_lines, _strs):
+    hits = []
+    for line in _lines:
+        for _str in _strs:
+            if line.startswith(_str):
                 hits = hits[:] + [line]
         if len(hits) == len(_strs):
             return hits
+    return hits
             
 def parsePos(_line, _pos, _delin):
     positions = _line.split(_delin)
