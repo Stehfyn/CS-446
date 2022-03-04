@@ -57,7 +57,7 @@
 
                     if(isExits)
                     {
-                        printf("Terminated\n");
+                        
                         break;
                     }
                     if(isRedirect)
@@ -99,8 +99,10 @@
                     free(arguments[i]); //arguments[i] = NULL;
                     free(outputTokens[i]); //outputTokens[i] = NULL;
                 }
-                kill(getpid(), 0);
-                //return 0;
+                if(isExits)
+                    kill(getpid(), 15);
+                else()
+                    return 0;
             }
         }
 
@@ -156,8 +158,8 @@
             }
             
         }
-        printf("Terminated\n");
-        kill(getpid(), 0);
+        
+        kill(getpid(), 15);
     }
 
 #else
