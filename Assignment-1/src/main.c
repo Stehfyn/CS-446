@@ -1,11 +1,11 @@
 /* Author: Stephen Foster CS 446 Feb '22
- * 
+ *
  *
  *
  */
 
-#include <stdafx.h>
-#include <main.h>
+#include "stdafx.h"
+#include "main.h"
 
 #ifndef TEST
 
@@ -37,101 +37,46 @@
                 printError();
                 return 1;
             }
-
-            else
-            {
-                char command[BUF_SIZE];
-                char* arguments[BUF_SIZE];
-                char* outputTokens[BUF_SIZE];
-        
-                for (int i = 0; i < BUF_SIZE; i++)
-                    arguments[i] = (char*)malloc(BUF_SIZE * sizeof(char));
-                for (int i = 0; i < BUF_SIZE; i++)
-                    outputTokens[i] = (char*)malloc(BUF_SIZE * sizeof(char));
-
-                while(readCommands(command, arguments, fin) != 0)
-                {
-                    printf("\n%s\n", command);
-                    char* ret = executeCommand(command, &isRedirect, arguments, outputTokens, &isExits);
-                    //handle redirect
-
-                    if(isExits)
-                    {
-                        
-                        break;
-                    }
-                    if(isRedirect)
-                    {
-                        
-                        fredirect = fopen(ret, "w");
-                        if(fredirect == NULL)
-                        {
-                            printError();
-                        }
-                        else
-                        {
-                            for(int i = 0; outputTokens[i]!=NULL; i++)
-                            {
-                                fprintf(fredirect, "%s", outputTokens[i]);
-                                //printf("%d: %s\n", i, outputTokens[i]);
-                            }
-                            fclose(fredirect);
-                            fredirect = NULL;
-                            isRedirect = false;
-                        }
-                        free(ret);
-                    }
-                    for(int i = 0; i < BUF_SIZE; i++)
-                    {
-                        free(arguments[i]); //arguments[i] = NULL;
-                        free(outputTokens[i]); //outputTokens[i] = NULL;
-                    }
-
-                    for (int i = 0; i < BUF_SIZE; i++)
-                        arguments[i] = (char*)malloc(BUF_SIZE * sizeof(char));
-                    for (int i = 0; i < BUF_SIZE; i++)
-                        outputTokens[i] = (char*)malloc(BUF_SIZE * sizeof(char));
-
-                    
-                }
-                for(int i = 0; i < BUF_SIZE; i++)
-                {
-                    free(arguments[i]); //arguments[i] = NULL;
-                    free(outputTokens[i]); //outputTokens[i] = NULL;
-                }
-                if(isExits)
-                    kill(getpid(), 15);
-                else
-                    return 0;
-            }
         }
 
-        init();
-        fin = stdin;
+        else
+        {
+            init();
+            fin = stdin;
+        }
 
         while(!isExits)
         {
             char command[BUF_SIZE];
             char* arguments[BUF_SIZE];
             char* outputTokens[BUF_SIZE];
-    
+
             for (int i = 0; i < BUF_SIZE; i++)
                 arguments[i] = (char*)malloc(BUF_SIZE * sizeof(char));
             for (int i = 0; i < BUF_SIZE; i++)
                 outputTokens[i] = (char*)malloc(BUF_SIZE * sizeof(char));
-            
-            promptUser(false);
+
+            promptUser(isBatch);
 
             int x = readCommands(command, arguments, fin);
 
-            //printf("%s", command);
+            if(isBatch)
+            {
+                if(feof(fin)!=0)
+                    return 0;
+                printf("%s", command);
+            }
 
             char* ret = executeCommand(command, &isRedirect, arguments, outputTokens, &isExits);
 
-            //handle redirect
+            if(isExits)
+            {
+                break;
+            }
+
             if(isRedirect)
             {
-                
+
                 fredirect = fopen(ret, "w");
                 if(fredirect == NULL)
                 {
@@ -142,24 +87,24 @@
                     for(int i = 0; outputTokens[i]!=NULL; i++)
                     {
                         fprintf(fredirect, "%s", outputTokens[i]);
-                        //printf("%d: %s\n", i, outputTokens[i]);
                     }
+
                     fclose(fredirect);
                     fredirect = NULL;
                     isRedirect = false;
                 }
                 free(ret);
             }
-            
+
             for(int i = 0; i < BUF_SIZE; i++)
             {
                 free(arguments[i]);
                 free(outputTokens[i]);
             }
-            
+
         }
-        
-        kill(getpid(), 15);
+
+        kill(getpid(), MY_SIGTERM);
     }
 
 #else
@@ -232,26 +177,25 @@ int readCommands(char* command, char* arguments[BUF_SIZE], FILE* in)
     int count = 0;
     char input[BUF_SIZE];
     char* tokens[BUF_SIZE];
-    
-    if( fgets(input,BUF_SIZE,in) != NULL )
+
+    if( fgets(input,sizeof(input),in) != NULL )
     {
-        //printf("before parse\n");
+        if(in !=stdin && strchr(input,'\n')==NULL)
+            strcat(input,'\n');
+
         sprintf(command, "%s", input);
         int x = parseInput(input, tokens);
 
-        //printf("before fix1\n");
         tokens[x-1][strlen(tokens[x-1])-1] = '\0'; //lol newline go brrr
-        //printf("before strcpy\n");
-        //printf("before loop\n");
+
 
         for(int i = 0; i < x; i++)
         {
-            //printf("loop: %d", count);
+
             strcpy(arguments[i], tokens[i]);
             count++;
         }
 
-        //printf("before NULL\n");
         arguments[count] = NULL;
     }
     return count;
@@ -261,7 +205,7 @@ char* executeCommand(char* cmd, bool* isRedirect, char* tokens[BUF_SIZE], char* 
 {
     char* out_file = "";
     char* special = strchr(cmd, '>');
-    //printf("works1\n");
+
 
     if(special != NULL)
     {
@@ -270,7 +214,6 @@ char* executeCommand(char* cmd, bool* isRedirect, char* tokens[BUF_SIZE], char* 
     else
     {
         int x = getTokenCount(tokens);
-        //printf("token count: %d\n", x);
 
         if ( x == 0 )
         {
@@ -297,14 +240,14 @@ char* executeCommand(char* cmd, bool* isRedirect, char* tokens[BUF_SIZE], char* 
 char* redirectCommand(char* special, char* line, bool* isRedirect, char* tokens[BUF_SIZE], char* outputTokens[BUF_SIZE])
 {
     FILE* f1 = NULL;
-    
+
     if (strchr(line, ">>") != NULL)
     {
         return "";
     }
 
     char files[BUF_SIZE][BUF_SIZE];
-    
+
     int i = 0;
     while ((line = strtok(line, ">")) != NULL)
     {
@@ -318,9 +261,7 @@ char* redirectCommand(char* special, char* line, bool* isRedirect, char* tokens[
         removeChars(files[0], ' ');
         removeChars(files[1], ' ');
         removeChars(files[1], '\n');
-        //printf("-%s-%s-", files[0], files[1]);
 
-        //open file1
         f1 = fopen(files[0], "r");
         if(f1 == NULL)
         {
@@ -368,28 +309,25 @@ bool exitProgram(char* tokens[BUF_SIZE], int numTokens)
 
 void launchProcesses(char* tokens[BUF_SIZE], int numTokens, bool isRedirect)
 {
-    if(!isRedirect)
+    if(!isRedirect && ((strcmp(tokens[0],"exit") != 0) && (strcmp(tokens[0], "cd") !=0 ) && ( strcmp(tokens[0], "help") != 0)))
     {
         if(fork() != 0)
         {
             int status = 0;
-            //parent code
+
             waitpid(-1, &status, 0);
+
         }
         else
         {
-            char check[BUF_SIZE];
-            strcpy(check, tokens[0]);
 
-            if((strcmp(check,"exit") != 0) && (strcmp(check, "cd") !=0 ) && ( strcmp(check, "help") != 0))
+            int x = execvp(tokens[0], tokens);
+
+            if(x == -1)
             {
-                int x = execvp(tokens[0], tokens);
-
-                if(x == -1) 
-                {   
-                    printError();
-                    exit(1); //signals parent on fail
-                }
+                printError();
+                _exit(1); //signals parent on fail
+                //also _exit over exit as per https://stackoverflow.com/questions/50914178/c-file-pointer-changing-after-fork-and-failed-exec
             }
         }
     }
@@ -476,12 +414,15 @@ int getTokenCount(char* tokens[BUF_SIZE])
     }
     return count;
 }
-void removeChars(char* str, char c) 
+
+void removeChars(char* str, char c)
 {
     char *pr = str, *pw = str;
-    while (*pr) {
+    while (*pr)
+    {
         *pw = *pr++;
         pw += (*pw != c);
     }
     *pw = '\0';
 }
+
