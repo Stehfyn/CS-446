@@ -47,7 +47,6 @@ def main():
     boottime = str(datetime.datetime.fromtimestamp(int(boottime)))
     
     #Further parse and fill diskstats
-
     reads = "Reads: " + parsePos(diskstats, 1, " ")
     writes = "Writes: " + parsePos(diskstats, 5, " ") + "\n"
     diskstats = [reads, writes]
@@ -90,7 +89,6 @@ def parseForRelSub(_lines, _strs, _pos):
         for _str in _strs:
             if _str in line:
                 hits = hits[:] + [_lines[numLines + _pos]]
-
         if len(hits) == len(_strs):
             return hits
         numLines += 1
@@ -102,7 +100,6 @@ def parseForSub(_lines, _strs):
         for _str in _strs:
             if line.find(_str):
                 hits = hits[:] + [line]
-        
         if len(hits) == len(_strs):
             return hits
     return hits

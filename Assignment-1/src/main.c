@@ -104,7 +104,7 @@
 
         }
 
-        kill(getpid(), MY_SIGTERM);
+        kill(0, MY_SIGTERM);
     }
 
 #else
@@ -245,7 +245,31 @@ char* redirectCommand(char* special, char* line, bool* isRedirect, char* tokens[
     {
         return "";
     }
-
+    char * linecpy = line;
+    int arrows = 0;
+    while(*linecpy != '\0')
+    {
+        if(*linecpy == '>')
+            arrows++;
+        if(arrows > 1)
+        {
+            printError();
+            return "";
+        }
+        *linecpy++;
+    }
+    int periodsAfter = 0;
+    while(*special != '\0')
+    {
+        if(*special == '.')
+            periodsAfter++;
+        if(periodsAfter > 1)
+        {
+            printError();
+            return "";
+        }
+        *special++;
+    }
     char files[BUF_SIZE][BUF_SIZE];
 
     int i = 0;
@@ -385,23 +409,6 @@ void getHelp(char* tokens[BUF_SIZE], int numTokens)
         {
             printError();
         }
-    }
-}
-
-void clearStr(char* str)
-{
-    printf("%d\n", strlen(str));
-    for(int i = 0; i < strlen(str); i++)
-    {
-        str[i] = '\0';
-    }
-}
-
-void clearStr2D(char* strs[BUF_SIZE])
-{
-    for(int i = 0; i < BUF_SIZE; i++)
-    {
-        clearStr(strs[i]);
     }
 }
 
