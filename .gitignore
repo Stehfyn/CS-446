@@ -2,6 +2,7 @@
 bin/
 debug/
 obj/
+__pycache__/
 
 #Files
 *.o
