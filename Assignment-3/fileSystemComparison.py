@@ -39,26 +39,28 @@ def main():
     
     single = init_single_level_directory(100)
     hierarchical = init_hierarchical_level_directory(10, 10)
+    
+    ss, hs = single.get_statistics(), hierarchical.get_statistics()
+    print(ss), print(hs)
 
-    print(single.get_statistics())
     write_tableu(single.path + single.name, "singleLevelFiles.txt", single)
-
-    print(hierarchical.get_statistics())
     write_tableu(hierarchical.path + hierarchical.name, "hierarchicalFiles.txt", hierarchical)
 
     #force_delete_dir(single)
     #force_delete_dir(hierarchical)
 
 class Statistics:
-    data = {}
-    keys = ["Name",
+
+    def __init__(self, _n, _f, _d, _tfs, _tds, _tt):
+
+        self.data = {}
+        self.keys = ["Name",
             "Number of Files",
             "Number of Directories",
             "Average File Size",
             "Average Directory Size (bytes)",
             "Traversal Time (ms)"]
 
-    def __init__(self, _n, _f, _d, _tfs, _tds, _tt):
         #process_time() yields fractional second, thus t*1000 = # of ms
         vals = [_n, _f, _d, _tfs/_f if _f != 0 else 0, _tds/_d if _d != 0 else 0, round(_tt*1000, 8)] 
     
@@ -73,11 +75,11 @@ class Statistics:
         return s
 
 class File:
-    
-    path = ''
-    name = ''
 
     def __init__(self, _path, _name):
+        self.path = ''
+        self.name = ''
+
         self.path = os.path.abspath(_path) + '/'
         self.name = _name
         
@@ -85,15 +87,13 @@ class File:
 
 class Directory:
 
-    path = ''
-    name = ''
-
-    files = []
-    directories = []
-    tableu = []
-
     def __init__(self, _path, _name):
-            
+        self.path = ''
+        self.name = ''
+        self.files = []
+        self.directories = []
+        self.tableu = []
+
         self.path = os.path.abspath(_path) + '/'
         self.name = _name
 
