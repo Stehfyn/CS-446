@@ -14,9 +14,16 @@
 # sizes strictly refer to bytes not belonging to the metadata for the file, device, pipe, etc. Of course a files metadata could not be
 # zero size, however this information is stored in the relevant inode. The reason why either directory (and any subdirectories) is/are 
 # 4096 bytes a piece, is because that is the minimum overhead size of an inode (as it points to a single data block). Neither test case 
-# exceeds the ability of a single data block, thus resulting in the similarity in size of directories. The traversal time tends to lean
-# towards SL, especially after changing the implementation to remove time bloat from ancillary functionality. This is due to the less 
-# indirection in searching an SL vs. a HL filesystem
+# exceeds the ability of a single data block, thus resulting in the similarity in size of directories. 
+#
+# UPDATE: After running the script on both a personal WSL environment vs. UNR's ubuntu webserver, it appears that the inode size 
+# on the webserver is tuned differently. Some directories with the same amount of blank files are slightly different in size, in what
+# I'm interpreting as the webserver having much smaller size data blocks, thus capturing (instead of aliasing) the differences in filename
+# lengths, protections, indirections, etc. All directories went from exactly 4096 bytes in my personal WSL environment to roughly around 200 
+# bytes on the webserver.
+#
+# The traversal time tends to lean towards SL, especially after changing the implementation to remove time bloat from ancillary functionality.
+# This is due to the less indirection in searching an SL vs. a HL filesystem
 # 
 #    In a simple SL filesystem with arbitrarily long filenames and an arbitrary number of files, an emulation of filepaths would use a
 # delimiting character to denote subdirectories. Using '#' as an example, a SL filesystem could emulate a desktop subdirectory by making
