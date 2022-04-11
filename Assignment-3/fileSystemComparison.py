@@ -1,111 +1,203 @@
-#@auth: @Stehfyn
-#from fileinput import hook_encoded
+# @auth: Stephen Foster Apr '22 CS-446
+# @repo: github.com/Stehfyn/CS-446
+# @file: fileSystemComparison.py
+# @vers: 1.0
+#
+# @impl: Object-oriented approach to maintain readability. Originally sorting and positioning files alphanumerically happened inside 
+# of get_statistics() which ate performance, and disproportionately affected single level directories at scale. I've changed the 
+# implementation to better to highlight the average performance difference of traversing either kinds of directories.
+#
+# @usage: cli: [python3] fileSystemComparison.py
+#         ex: python fileSystemComparison.py
+#
+# @concl: The similarity between average file sizes of Single-Level (SL) and Hiearchical (HL) is due to the fact that these days file
+# sizes strictly refer to bytes not belonging to the metadata for the file, device, pipe, etc. Of course a files metadata could not be
+# zero size, however this information is stored in the relevant inode. The reason why either directory (and any subdirectories) is/are 
+# 4096 bytes a piece, is because that is the minimum overhead size of an inode (as it points to a single data block). Neither test case 
+# exceeds the ability of a single data block, thus resulting in the similarity in size of directories. The traversal time tends to lean
+# towards SL, especially after changing the implementation to remove time bloat from ancillary functionality. This is due to the less 
+# indirection in searching an SL vs. a HL filesystem
+# 
+#    In a simple SL filesystem with arbitrarily long filenames and an arbitrary number of files, an emulation of filepaths would use a
+# delimiting character to denote subdirectories. Using '#' as an example, a SL filesystem could emulate a desktop subdirectory by making
+# desktop-intended files denoted through a delimited path: root#user#stehfyn#desktop#file.txt
+
 import os, sys, subprocess
+import re, stat
+
 from typing import List
+from time import process_time
+
+def main():
+    
+    single = init_single_level_directory(100)
+    hierarchical = init_hierarchical_level_directory(10, 10)
+
+    print(single.get_statistics())
+    write_tableu(single.path + single.name, "singleLevelFiles.txt", single)
+
+    print(hierarchical.get_statistics())
+    write_tableu(hierarchical.path + hierarchical.name, "hierarchicalFiles.txt", hierarchical)
+
+    #force_delete_dir(single)
+    #force_delete_dir(hierarchical)
+
+class Statistics:
+    data = {}
+    keys = ["Name",
+            "Number of Files",
+            "Number of Directories",
+            "Average File Size",
+            "Average Directory Size (bytes)",
+            "Traversal Time (ms)"]
+
+    def __init__(self, _n, _f, _d, _tfs, _tds, _tt):
+        #process_time() yields fractional second, thus t*1000 = # of ms
+        vals = [_n, _f, _d, _tfs/_f if _f != 0 else 0, _tds/_d if _d != 0 else 0, round(_tt*1000, 6)] 
+    
+        for i, x in enumerate(self.keys):
+            self.data.update({x:vals[i]})
+
+    def __str__(self):
+        s = ''
+        s += self.data.get('Name') + '\n\n'
+        for x in range(1, len(self.keys)):
+            s += self.keys[x] + ': ' + f'{self.data.get(self.keys[x]):2}' + '\n'
+        return s
+
+class File:
+    
+    path = ''
+    name = ''
+
+    def __init__(self, _path, _name):
+        self.path = os.path.abspath(_path) + '/'
+        self.name = _name
+        
+        subprocess.getstatusoutput("touch " + self.path + self.name)
 
 class Directory:
-		def __init__(self, _path :str, _name :str):
-			self.path = os.path.abspath(_path)
-			self.name = _name
-			self.files = list("")
-			self.directories = []
 
-			cur = os.path.abspath(os.curdir)
-			os.chdir(self.path)
-			init_list = ["mkdir", _name]
-			subprocess.run(init_list)
-			os.chdir(cur)
-			
-		def add_file(self, _file_name :str):
-			cur = os.path.abspath(os.curdir)
-			os.chdir(self.path + '/' + self.name)
-			touch_list = ["touch", _file_name]
-			subprocess.run(touch_list)
-			self.files.append(_file_name)
-			os.chdir(cur)
-		
-		def add_directory(self, _dir_name :str):
-			cur = os.path.abspath(os.curdir)
-			os.chdir(self.path + '/' + self.name)
-			add = Directory(self.path + '/' + self.name, _dir_name)
-			self.directories.append(add)
-			os.chdir(cur)
+    path = ''
+    name = ''
 
-		def __del__(self):
-			#TODO: we can traverse our dir lists and explicitly call our __del__ 
-			#we got the lazy handling here:
-			try:
-				cur = os.path.abspath(os.curdir)
-				os.chdir(self.path)
-				del_list = ["rm", "-r", self.name]	
-				subprocess.run(del_list)
-				print(del_list)
-				os.chdir(cur)
-			except Exception as inst:
-				if type(inst) != FileNotFoundError:
-					print(inst)
-class Stats:
-		def __init__(self):
-			self.files = 0
-			self.size = 0
-			self.elapsed = 0
-			
-def main():
-	print("main")
-	single = construct_single(100)
-	hierarchical = construct_hierarchical(10,100)
-	#subprocess.run(["ls", "../.."])
-	#subprocess.run(["ls", "../../" + single.name])
-	subprocess.run(["ls", "../../" + hierarchical.name])
-	for d in hierarchical.directories:
-		subprocess.run(["ls", "../../" + hierarchical.name + '/' + d.name])
-	s = traverse(single, visit)
-	h = traverse(hierarchical, visit)
+    files = []
+    directories = []
+    tableu = []
 
-def construct_single(_files :int) -> Directory:
-	home_dir = os.environ["HOME"]
-	single = Directory(home_dir, "singleRoot")
+    def __init__(self, _path, _name):
+            
+        self.path = os.path.abspath(_path) + '/'
+        self.name = _name
 
-	for x in range(1, _files + 1):
-		path = single.path + '/' + single.name
-		single.add_file("file" + str(x) + ".txt")
-	return single
+        if os.path.isdir(self.path + self.name):
+            force_delete_dir(self)
 
-def construct_hierarchical(_dirs :int, _files :int) -> Directory:
-	home_dir = os.environ["HOME"]
-	hierarchical = Directory(home_dir, "hierarchicalRoot")
+        os.mkdir(self.path + self.name)
+        
+    def add_file(self, _file :str):
+        self.files.append(File(self.path + self.name, _file))
+        
+    def make_directory(self, _dir :str):
+        self.directories.append(Directory(self.path + self.name, _dir))
 
-	if _files % _dirs != 0:
-		raise Exception
-	
-	split = _files //_dirs
+    def tableu_to_str(self):
+        s = ''
+        for dirs, sizes, files in self.tableu:
+            if dirs != self.path + self.name:
+                s += '\t'
+            s += '{0:2} {1:3}'.format(dirs + '/', str(sizes))
+            s += '\n'
+            for f, sz in files:
+                s += '\t\t' + '{0:2} {1:3}'.format(f, str(sz))
+                s += '\n'
+        return s
 
-	for d in range(1, _dirs + 1):
+    def get_tableu(self):
+        if len(self.tableu) == 0:
+            self.get_statistics()
+        return self.tableu
 
-		r = range(d*split-(split-1), d*split + 1)
-		dir_name = "files" + str(list(r)[0]) + '-' + str(list(r)[len(list(r))-1])
-		hierarchical.add_directory(dir_name)
+    def get_statistics(self):
+        name, files, dirs, total_file_size, total_dir_size = "", 0, 0, 0, 0
+        self.tableu.clear()
 
-		for x in r:
-			hierarchical.directories[d-1].add_file("file" + str(x) + ".txt")
+        start = process_time()
+        for dirpath, dirnames, filenames in os.walk(self.path + self.name):
+            file_and_size = []
 
-	return hierarchical
+            #sorted() here eats traversal time, a future impl would sort after
+            #also, single level is greatly more likely eat time at scale, as
+            #statistically speaking its bin size is 0 compared to hl's 10 in this use case!
 
-def visit(_dir :Directory):
-	return
+            #for f in sorted(filenames, key=alpha_num_order):
 
-def traverse(_dir :Directory, _stats :Stats) -> Stats:
-	if len(_dir.directories) > 0:
-		for d in _dir.directories:
-			s = traverse(d, _stats)
-			_stats.files += s.files
-			_stats.size += s.size
-	for f in _dir.files:
-    	s = os.stat(_dir.path + '/' + f)
-	return
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    s = os.path.getsize(fp)
+                    total_file_size += s
+                    file_and_size.append((f,s))
+                    files += 1
+            
+            dir_size = os.path.getsize(dirpath)
 
-if __name__ == "__main__":
-	try:
-		main()
-	except Exception as inst:
-		print(inst)
+            if dirpath != self.path + self.name:
+                self.tableu.append((os.path.basename(dirpath), dir_size, file_and_size))
+                total_dir_size += dir_size
+                dirs += 1
+            else:
+                self.tableu.append((dirpath, dir_size, file_and_size))
+        end = process_time()
+
+        if dirs == 0:
+            name = "Single Level File System"
+        else:
+            name = "Hierarchical File System"
+        return Statistics(name, files, dirs, total_file_size, total_dir_size, end-start)
+
+def alpha_num_order(s :str):
+    return ''.join([format(int(x), '05d') if x.isdigit()
+                   else x for x in re.split(r'(\d+)', s)])
+                   
+def init_single_level_directory(_files :int) -> Directory:
+    single = Directory(os.environ['HOME'], 'singleRoot')
+    for x in range(_files):
+        single.add_file("file" + str(x+1) + ".txt")
+    return single
+    
+def init_hierarchical_level_directory(_dirs :int, _files :int) -> Directory:
+    hierarchical = Directory(os.environ['HOME'], 'hierarchicalRoot')
+    split = _files
+    for d in range(_dirs):
+        r = range((d+1)*split-(split-1), (d+1)*split + 1)
+        dir_name = "files" + str(list(r)[0]) + '-' + str(list(r)[len(list(r))-1])
+        hierarchical.make_directory(dir_name)
+        for x in r:
+            hierarchical.directories[d].add_file("file" + str(x) + ".txt")
+    return hierarchical
+
+def write_tableu(_path :str, _name :str, _dir :Directory) -> None:
+    s = _dir.tableu_to_str()
+    clearFile(_path, _name)
+    outputToFile(_path, _name, s)
+
+def force_delete_dir(_dir :Directory):
+    cmd = "rm -rf " + _dir.path + _dir.name
+    return subprocess.getstatusoutput(cmd)
+
+def outputToFile(_path :str, _out_file: str, _str :str) -> None:
+    fout = open(_path + '/' + _out_file, 'a')
+    fout.write(_str)
+    fout.close()
+
+def clearFile(_path :str, _out_file :str) -> None:
+    fout = open(_path + '/' + _out_file, 'w')
+    fout.write('')
+    fout.close()
+
+if __name__=='__main__':
+    try:
+        main(), exit(0)
+    except Exception as inst:
+        print(inst), exit(1)
