@@ -60,7 +60,7 @@ class Statistics:
 
     def __init__(self, _n, _f, _d, _tfs, _tds, _tt):
         #process_time() yields fractional second, thus t*1000 = # of ms
-        vals = [_n, _f, _d, _tfs/_f if _f != 0 else 0, _tds/_d if _d != 0 else 0, round(_tt*1000, 6)] 
+        vals = [_n, _f, _d, _tfs/_f if _f != 0 else 0, _tds/_d if _d != 0 else 0, round(_tt*1000, 8)] 
     
         for i, x in enumerate(self.keys):
             self.data.update({x:vals[i]})
